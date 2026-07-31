@@ -1,0 +1,17 @@
+# Data generation / rendering
+numpy
+matplotlib
+
+# VLM + finetuning (pin exact versions on the server once GPU is known)
+torch
+transformers>=4.57       # Qwen3-VL support
+accelerate
+peft
+qwen-vl-utils
+
+# Evaluation
+scipy                    # linear_sum_assignment (Hungarian), EMD
+pot                      # python-optimal-transport, exact EMD
+
+# Agent
+claude-agent-sdk
