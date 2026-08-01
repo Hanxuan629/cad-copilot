@@ -36,7 +36,7 @@ def load_model(adapter_dir=None):
 
 
 @torch.no_grad()
-def predict(model, processor, image_path):
+def predict(model, processor, image_path, max_new_tokens=512):
     messages = [{"role": "user", "content": [
         {"type": "image", "image": str(image_path)},
         {"type": "text", "text": PROMPT},
@@ -45,9 +45,11 @@ def predict(model, processor, image_path):
         messages, tokenize=True, add_generation_prompt=True,
         return_dict=True, return_tensors="pt",
     ).to(model.device)
-    out = model.generate(**inputs, max_new_tokens=1024, do_sample=False)
-    trimmed = out[:, inputs["input_ids"].shape[1]:]
-    return processor.batch_decode(trimmed, skip_special_tokens=True)[0]
+    out = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+    n_prompt = inputs["input_ids"].shape[1]
+    trimmed = out[:, n_prompt:]
+    n_gen = trimmed.shape[1]
+    return processor.batch_decode(trimmed, skip_special_tokens=True)[0], n_gen
 
 
 def main():
@@ -57,6 +59,8 @@ def main():
     ap.add_argument("--n-eval", type=int, default=500)
     ap.add_argument("--limit", type=int, default=None, help="cap #eval samples (debug)")
     ap.add_argument("--metric", choices=["emd", "chamfer"], default="chamfer")
+    ap.add_argument("--max-new-tokens", type=int, default=512)
+    ap.add_argument("--verbose", action="store_true", help="print per-image timing")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -78,18 +82,27 @@ def main():
         for k, row in enumerate(eval_rows):
             label = json.loads(Path(row["label"]).read_text())
             gt = label["curves"]
-            raw = predict(model, processor, Path(row["image"]).resolve())
+            t_gen = time.time()
+            raw, n_gen = predict(model, processor, Path(row["image"]).resolve(),
+                                 max_new_tokens=args.max_new_tokens)
+            gen_s = time.time() - t_gen
             pred = parse_curves(raw)
             if not pred:
                 agg["parse_fail"] += 1
+            t_score = time.time()
             score = match_designs(pred, gt, metric=args.metric)
+            score_s = time.time() - t_score
             fout.write(json.dumps({"cad_id": row["cad_id"], "n_pred": len(pred),
                                    "n_gt": len(gt), **score}) + "\n")
+            fout.flush()
             for key in ("edit_distance", "edit_norm", "type_accuracy",
                         "count_correct", "count_error"):
                 agg[key].append(score[key])
             if score["matched_distance"] != float("inf"):
                 agg["matched_distance"].append(score["matched_distance"])
+            if args.verbose or k < 3:
+                print(f"  [{k+1}/{len(eval_rows)}] gen={gen_s:.1f}s ntok={n_gen} "
+                      f"score={score_s:.1f}s n_pred={len(pred)} n_gt={len(gt)}", flush=True)
             if (k + 1) % 25 == 0:
                 el = time.time() - t0
                 print(f"  {k+1}/{len(eval_rows)}  ({el/(k+1):.1f}s/img)", flush=True)
