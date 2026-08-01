@@ -44,11 +44,14 @@ def parse_curves(text):
     # strip common ```json fences
     text = re.sub(r"```(?:json)?", "", text)
     obj = _first_json_object(text)
-    if obj is None:
-        return []
-    curves = obj.get("curves", []) if isinstance(obj, dict) else []
+    if isinstance(obj, dict) and "curves" in obj:
+        raw_curves = obj.get("curves", [])
+    else:
+        # Truncated / unbalanced JSON (long outputs get cut off mid-array): salvage
+        # every complete {"type":..., "control_points":[[...]]} object we can find.
+        raw_curves = _salvage_curves(text)
     clean = []
-    for c in curves:
+    for c in raw_curves:
         if not isinstance(c, dict):
             continue
         t = c.get("type")
@@ -67,6 +70,32 @@ def parse_curves(text):
             continue
         clean.append({"type": t, "control_points": pts[:need]})
     return clean
+
+
+def _salvage_curves(text):
+    """Extract individual curve objects from possibly-truncated JSON.
+
+    Splits on each `"type"` key and, for each segment, reads the primitive type and
+    the [x, y] pairs that follow (up to the next `"type"`). A long output cut off
+    mid-array still yields every curve that completed before the cut.
+    """
+    out = []
+    # positions of each "type": "word"
+    matches = list(re.finditer(r'"type"\s*:\s*"(\w+)"', text))
+    for i, m in enumerate(matches):
+        t = m.group(1)
+        seg_end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        seg = text[m.end():seg_end]
+        pts = _extract_point_pairs(seg)
+        if pts:
+            out.append({"type": t, "control_points": pts})
+    return out
+
+
+def _extract_point_pairs(s):
+    """Pull [x, y] number pairs out of a (possibly truncated) bracketed string."""
+    pairs = re.findall(r'\[\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\s*\]', s)
+    return [[float(x), float(y)] for x, y in pairs]
 
 
 def _first_json_object(text):
