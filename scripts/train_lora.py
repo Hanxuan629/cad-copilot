@@ -39,7 +39,7 @@ class SketchDataset(Dataset):
         answer = json.dumps({"curves": label["curves"]}, ensure_ascii=False)
         messages = [
             {"role": "user", "content": [
-                {"type": "image", "image": f"file://{Path(row['image']).resolve()}"},
+                {"type": "image", "image": str(Path(row['image']).resolve())},
                 {"type": "text", "text": PROMPT}]},
             {"role": "assistant", "content": [{"type": "text", "text": answer}]},
         ]

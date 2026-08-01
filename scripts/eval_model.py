@@ -38,7 +38,7 @@ def load_model(adapter_dir=None):
 @torch.no_grad()
 def predict(model, processor, image_path):
     messages = [{"role": "user", "content": [
-        {"type": "image", "image": f"file://{image_path}"},
+        {"type": "image", "image": str(image_path)},
         {"type": "text", "text": PROMPT},
     ]}]
     inputs = processor.apply_chat_template(
