@@ -117,6 +117,9 @@ def main():
                         "gate_proj", "up_proj", "down_proj"],
         task_type="CAUSAL_LM")
     model = get_peft_model(model, lora)
+    # gradient checkpointing + PEFT: the input embeddings' output must require grad,
+    # otherwise the checkpointed graph detaches and backward can't reach LoRA params.
+    model.enable_input_require_grads()
     model.print_trainable_parameters()
 
     targs = TrainingArguments(
@@ -127,6 +130,7 @@ def main():
         learning_rate=args.lr,
         fp16=True, bf16=False,                       # V100: fp16 only
         gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         logging_steps=10,
         save_steps=args.save_steps,
         save_total_limit=3,
