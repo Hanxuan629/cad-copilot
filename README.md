@@ -27,12 +27,29 @@ accuracy.
 - **Ground truth:** `design.curves` from the source dataset
 - **Eval:** EMD / Chamfer curve-matching error, primitive-type accuracy, primitive-count accuracy
 
+## Layout
+
+```
+scripts/
+  render_dataset.py   data_pool → (PNG, JSON) pairs
+  common.py           fixed prompt, JSON parsing, EMD/Chamfer + Hungarian scoring, data split
+  eval_model.py       run a model (base or LoRA) over the eval split, print metrics
+  train_lora.py       LoRA fine-tune (fp16, grad-checkpoint, checkpoint + auto-resume)
+slurm/
+  eval_base.sh        baseline eval of stock Qwen3-VL-2B
+  train_lora.sh       LoRA training (6h wall limit; resubmit to resume)
+  eval_lora.sh        eval the LoRA-adapted model
+```
+
+Runs on the CCDS TC1 cluster (single Tesla V100 32GB, SLURM, 6h QoS). All GPU work is
+submitted as SLURM jobs — fp16 + sdpa attention (Volta has no bf16 / FlashAttention-2).
+
 ## Status
 
-- [ ] `render_dataset.py` — data_pool → (PNG, JSON) pairs
-- [ ] baseline eval of stock Qwen3-VL-2B
-- [ ] LoRA finetune
-- [ ] EMD evaluation (base vs LoRA)
+- [x] `render_dataset.py` — data_pool → (PNG, JSON) pairs
+- [x] baseline eval script + SLURM job
+- [x] LoRA finetune script + SLURM job (checkpoint/resume for the 6h wall limit)
+- [x] EMD / Chamfer evaluation (base vs LoRA, shared `eval_model.py`)
 - [ ] symbolic refinement stage
 - [ ] agent execute-verify loop
 
