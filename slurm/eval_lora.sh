@@ -19,5 +19,5 @@ cd $HOME/cad-copilot
 python scripts/eval_model.py \
     --dataset dataset \
     --adapter checkpoints/lora-qwen3vl-2b \
-    --metric emd \
-    --out eval_lora_emd.jsonl
+    --metric chamfer \
+    --out eval_lora_chamfer.jsonl

@@ -16,4 +16,4 @@ module load anaconda
 source activate cad
 
 cd $HOME/cad-copilot
-python scripts/eval_model.py --dataset dataset --metric emd --out eval_base_emd.jsonl
+python scripts/eval_model.py --dataset dataset --metric chamfer --out eval_base_chamfer.jsonl

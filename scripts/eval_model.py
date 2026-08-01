@@ -56,7 +56,7 @@ def main():
     ap.add_argument("--adapter", default=None, help="LoRA adapter dir; omit for base model")
     ap.add_argument("--n-eval", type=int, default=500)
     ap.add_argument("--limit", type=int, default=None, help="cap #eval samples (debug)")
-    ap.add_argument("--metric", choices=["emd", "chamfer"], default="emd")
+    ap.add_argument("--metric", choices=["emd", "chamfer"], default="chamfer")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -71,8 +71,8 @@ def main():
 
     model, processor = load_model(args.adapter)
 
-    agg = {"matched_distance": [], "type_accuracy": [], "count_correct": [],
-           "count_error": [], "parse_fail": 0}
+    agg = {"edit_distance": [], "edit_norm": [], "matched_distance": [],
+           "type_accuracy": [], "count_correct": [], "count_error": [], "parse_fail": 0}
     t0 = time.time()
     with open(out_path, "w") as fout:
         for k, row in enumerate(eval_rows):
@@ -85,7 +85,8 @@ def main():
             score = match_designs(pred, gt, metric=args.metric)
             fout.write(json.dumps({"cad_id": row["cad_id"], "n_pred": len(pred),
                                    "n_gt": len(gt), **score}) + "\n")
-            for key in ("type_accuracy", "count_correct", "count_error"):
+            for key in ("edit_distance", "edit_norm", "type_accuracy",
+                        "count_correct", "count_error"):
                 agg[key].append(score[key])
             if score["matched_distance"] != float("inf"):
                 agg["matched_distance"].append(score["matched_distance"])
@@ -99,10 +100,14 @@ def main():
     print("\n===== SUMMARY ({}) =====".format(tag))
     print(f"  samples              : {n}")
     print(f"  parse failures       : {agg['parse_fail']} ({100*agg['parse_fail']/n:.1f}%)")
-    print(f"  mean matched {args.metric:<7} : {mean(agg['matched_distance']):.4f}  (lower better)")
+    print("  -- perception axis --")
+    print(f"  edit distance (ADDs) : {mean(agg['edit_distance']):.2f}  (lower better)")
+    print(f"  edit distance (norm) : {mean(agg['edit_norm']):.3f}  (0=perfect structure)")
     print(f"  type accuracy        : {mean(agg['type_accuracy']):.3f}")
     print(f"  count-correct rate   : {mean(agg['count_correct']):.3f}")
     print(f"  mean count error     : {mean(agg['count_error']):.2f}")
+    print("  -- geometry axis --")
+    print(f"  mean matched {args.metric:<7} : {mean(agg['matched_distance']):.4f}  (accepted pairs; lower better)")
     print(f"  total time           : {time.time()-t0:.0f}s")
 
 

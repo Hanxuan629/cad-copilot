@@ -157,7 +157,7 @@ def _chamfer(pa, pb):
     return float(d.min(axis=1).mean() + d.min(axis=0).mean()) / 2
 
 
-def curve_distance(c1, c2, n=32, metric="emd"):
+def curve_distance(c1, c2, n=32, metric="chamfer"):
     pa = sample_curve(c1, n)
     pb = sample_curve(c2, n)
     return _emd(pa, pb) if metric == "emd" else _chamfer(pa, pb)
@@ -165,30 +165,67 @@ def curve_distance(c1, c2, n=32, metric="emd"):
 
 # ---- design-to-design scoring -----------------------------------------------
 
-def match_designs(pred, gt, n=32, metric="emd"):
-    """Hungarian match predicted curves to GT curves. Returns a dict of scores.
+# geometric distance above which a same-type pairing is rejected as a real match
+REJECT_TAU = 5.0
+# cost placed on cross-type cells so the assignment avoids them (mismatch rejection)
+BIG_M = 1e6
 
-    matched_distance : mean curve distance over matched pairs (lower is better)
-    type_accuracy    : fraction of matched pairs with identical primitive type
-    count_error      : |#pred - #gt|
-    count_correct    : 1.0 if counts equal else 0.0
+
+def match_designs(pred, gt, n=32, metric="chamfer"):
+    """One-shot global (Hungarian) alignment of predicted vs GT curves.
+
+    A single assignment feeds two axes:
+      - perception axis -> edit_distance (structure: right primitives present?)
+      - geometry axis    -> matched_distance (how precise the accepted coords are)
+
+    Edit distance follows three refinements (see memory edit-distance-metric-refinements):
+      1. mismatch rejection : cross-type cells cost BIG_M, and an accepted match also
+         requires the geometric distance to be under REJECT_TAU; anything else is not
+         a real correspondence.
+      2. DELETE excluded    : extra predicted curves with no GT partner are NOT
+         penalised -- edit distance only counts how many GT curves must still be ADDed.
+      3. one-shot alignment : a single linear_sum_assignment, no iteration/greedy.
+
+    Returns (lower is better for distances / edit_distance; higher for accuracies):
+      edit_distance    : # GT curves not covered by an accepted match (ADDs)
+      edit_norm        : edit_distance / len(gt)
+      matched_distance : mean geometric distance over ACCEPTED pairs
+      type_accuracy    : fraction of GT curves with an accepted same-type match
+      count_error      : |#pred - #gt|
+      count_correct    : 1.0 if counts equal else 0.0
     """
     from scipy.optimize import linear_sum_assignment
     res = {"count_error": abs(len(pred) - len(gt)),
            "count_correct": float(len(pred) == len(gt))}
-    if len(pred) == 0 or len(gt) == 0:
-        res.update(matched_distance=float("inf"), type_accuracy=0.0, n_matched=0)
+    if len(gt) == 0:
+        res.update(edit_distance=0, edit_norm=0.0, matched_distance=0.0,
+                   type_accuracy=1.0, n_accepted=0)
         return res
-    cost = np.zeros((len(pred), len(gt)))
+    if len(pred) == 0:
+        res.update(edit_distance=len(gt), edit_norm=1.0, matched_distance=float("inf"),
+                   type_accuracy=0.0, n_accepted=0)
+        return res
+
+    # cost matrix: same type -> geometric distance; different type -> BIG_M
+    cost = np.full((len(pred), len(gt)), BIG_M)
     for i, cp in enumerate(pred):
         for j, cg in enumerate(gt):
-            cost[i, j] = curve_distance(cp, cg, n, metric)
-    ri, ci = linear_sum_assignment(cost)
-    dists = cost[ri, ci]
-    type_hits = sum(pred[i]["type"] == gt[j]["type"] for i, j in zip(ri, ci))
-    res.update(matched_distance=float(dists.mean()),
-               type_accuracy=type_hits / len(ri),
-               n_matched=len(ri))
+            if cp["type"] == cg["type"]:
+                cost[i, j] = curve_distance(cp, cg, n, metric)
+    ri, ci = linear_sum_assignment(cost)  # one-shot; matches min(#pred,#gt) pairs
+
+    accepted = []  # (geometric distance) for pairs that pass mismatch rejection
+    for i, j in zip(ri, ci):
+        if pred[i]["type"] == gt[j]["type"] and cost[i, j] < REJECT_TAU:
+            accepted.append(cost[i, j])
+    n_acc = len(accepted)
+    res.update(
+        edit_distance=len(gt) - n_acc,               # ADDs only; DELETEs excluded
+        edit_norm=(len(gt) - n_acc) / len(gt),
+        matched_distance=float(np.mean(accepted)) if accepted else float("inf"),
+        type_accuracy=n_acc / len(gt),
+        n_accepted=n_acc,
+    )
     return res
 
 
