@@ -55,13 +55,17 @@ def parse_curves(text):
         cp = c.get("control_points")
         if t not in VALID_TYPES or not isinstance(cp, list):
             continue
-        if len(cp) != N_POINTS_PER_TYPE[t]:
-            continue
         try:
             pts = [[float(p[0]), float(p[1])] for p in cp]
         except (TypeError, ValueError, IndexError):
             continue
-        clean.append({"type": t, "control_points": pts})
+        # Salvage curves whose arity is off rather than dropping them (the model
+        # sometimes gives a circle 3 points, etc.). Truncate extras; reject only
+        # if there are too few points to define the primitive at all.
+        need = N_POINTS_PER_TYPE[t]
+        if len(pts) < need:
+            continue
+        clean.append({"type": t, "control_points": pts[:need]})
     return clean
 
 

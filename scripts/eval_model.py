@@ -45,7 +45,8 @@ def predict(model, processor, image_path, max_new_tokens=512):
         messages, tokenize=True, add_generation_prompt=True,
         return_dict=True, return_tensors="pt",
     ).to(model.device)
-    out = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+    out = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False,
+                         repetition_penalty=1.3)
     n_prompt = inputs["input_ids"].shape[1]
     trimmed = out[:, n_prompt:]
     n_gen = trimmed.shape[1]
