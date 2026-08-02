@@ -58,13 +58,25 @@ def gen_visual(model, processor, image_path, prompt, max_new_tokens=512):
 
 
 def _draw(ax, curves, prefix, title):
+    import numpy as np
+    placed = []  # label anchor points already used, to spread overlaps
     for i, c in enumerate(curves):
         pts = sample_curve(c, 40)
         ax.plot(pts[:, 0], pts[:, 1], color="black", lw=1.3)
-        mid = pts[len(pts) // 2]
-        ax.text(mid[0], mid[1], f"{prefix}{i}", color="red", fontsize=9,
-                ha="center", va="center")
-    ax.set_xlim(-22, 22); ax.set_ylim(-22, 22); ax.set_aspect("equal")
+        # anchor the label at a fraction of the curve staggered by index, then nudge
+        # away from any already-placed label so numbers on overlapping lines stay legible
+        anchor = pts[int(len(pts) * (0.3 + 0.4 * ((i % 3) / 2.0)))]
+        lab = np.array(anchor, dtype=float)
+        for _ in range(8):
+            if all(np.hypot(*(lab - q)) > 2.2 for q in placed):
+                break
+            lab = lab + np.array([1.6, 1.6])
+        placed.append(lab.copy())
+        ax.annotate(f"{prefix}{i}", xy=anchor, xytext=lab, fontsize=8, color="red",
+                    ha="center", va="center",
+                    bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="red", lw=0.5),
+                    arrowprops=dict(arrowstyle="-", color="red", lw=0.4))
+    ax.set_xlim(-24, 24); ax.set_ylim(-24, 24); ax.set_aspect("equal")
     ax.set_title(title); ax.axis("off")
 
 
