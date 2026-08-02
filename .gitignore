@@ -28,3 +28,7 @@ wandb/
 .idea/
 logs/*
 !logs/.gitkeep
+
+# but keep eval result artifacts
+!results/
+!results/*.jsonl

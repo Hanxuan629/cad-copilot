@@ -53,4 +53,20 @@ submitted as SLURM jobs — fp16 + sdpa attention (Volta has no bf16 / FlashAtte
 - [ ] symbolic refinement stage
 - [ ] agent execute-verify loop
 
+## First results (Task A, Qwen3-VL-2B, 500-image held-out eval)
+
+| metric | base | LoRA | |
+|---|---|---|---|
+| parse fail % | 19.6 | **2.5** | ↓ |
+| edit_norm (structure) | 0.998 | **0.612** | ↓ better |
+| type accuracy | 0.002 | **0.388** | ↑ ~190× |
+| count error | 11.1 | 17.2 | ↑ worse (over-generates) |
+| chamfer (accepted pairs) | 2.90 | 2.96 | ≈ unchanged |
+
+**Takeaway — the neuro-symbolic case, empirically:** LoRA sharply improves *perception*
+(primitive type, structure, output format) but leaves *geometric precision* essentially
+flat (chamfer unchanged). The VLM learns **what to draw**, not **precisely where** — which
+is exactly the boundary the symbolic refinement stage is meant to own. A secondary finding:
+the tuned model tends to over-generate curves (count error rises even as structure improves).
+
 See [plan.md](plan.md) for the full execution plan.
