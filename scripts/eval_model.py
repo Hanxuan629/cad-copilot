@@ -63,6 +63,8 @@ def main():
     ap.add_argument("--max-new-tokens", type=int, default=512)
     ap.add_argument("--verbose", action="store_true", help="print per-image timing")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--dump-pred", default=None,
+                    help="also write predicted curves per image to this jsonl (for refinement)")
     args = ap.parse_args()
 
     rows = load_index(Path(args.dataset) / "index.jsonl")
@@ -79,6 +81,7 @@ def main():
     agg = {"edit_distance": [], "edit_norm": [], "matched_distance": [],
            "type_accuracy": [], "count_correct": [], "count_error": [], "parse_fail": 0}
     t0 = time.time()
+    dump = open(args.dump_pred, "w") if args.dump_pred else None
     with open(out_path, "w") as fout:
         for k, row in enumerate(eval_rows):
             label = json.loads(Path(row["label"]).read_text())
@@ -96,6 +99,12 @@ def main():
             fout.write(json.dumps({"cad_id": row["cad_id"], "n_pred": len(pred),
                                    "n_gt": len(gt), **score}) + "\n")
             fout.flush()
+            if dump is not None:
+                dump.write(json.dumps({"cad_id": row["cad_id"],
+                                       "image": str(Path(row["image"]).resolve()),
+                                       "pred_curves": pred, "gt_curves": gt,
+                                       "raw": raw}) + "\n")
+                dump.flush()
             for key in ("edit_distance", "edit_norm", "type_accuracy",
                         "count_correct", "count_error"):
                 agg[key].append(score[key])
@@ -107,6 +116,8 @@ def main():
             if (k + 1) % 25 == 0:
                 el = time.time() - t0
                 print(f"  {k+1}/{len(eval_rows)}  ({el/(k+1):.1f}s/img)", flush=True)
+    if dump is not None:
+        dump.close()
 
     n = len(eval_rows)
     def mean(x):
