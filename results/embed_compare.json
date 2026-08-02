@@ -1,0 +1,15 @@
+{
+  "geometric-AE": {
+    "spearman": 0.4068,
+    "pearson": 0.3488
+  },
+  "qwen-text": {
+    "spearman": 0.0394,
+    "pearson": 0.0633
+  },
+  "random": {
+    "spearman": 0.1901,
+    "pearson": 0.1585
+  },
+  "n_pairs": 3000
+}
