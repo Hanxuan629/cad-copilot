@@ -5,6 +5,7 @@ Each figure makes ONE claim (report-deck house style). English text only (matplo
 CJK renders as tofu). Reads results/*.jsonl produced by the pipeline.
 """
 import json
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -13,9 +14,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))   # for `from common import ...`
 RES = ROOT / "results"
 FIG = RES / "figs"
 FIG.mkdir(parents=True, exist_ok=True)
+# match dataset for the task-setup example (built locally to /tmp, or in data/)
+MATCH_JSONL = "/tmp/mm.jsonl" if Path("/tmp/mm.jsonl").exists() else str(ROOT / "data/match_cad2tgt.jsonl")
 
 # light theme: figures sit in the deck's white raster frame, so use a light bg
 DARK = "#ffffff"     # figure background (white, matches .fig-frame)
@@ -125,7 +129,44 @@ def fig_embedding():
     print("wrote embedding.png")
 
 
+def fig_task_setup():
+    """Task 2 setup: what line matching IS — pair each drawn curve to a target curve."""
+    from common import sample_curve
+    # a real, clean trial: 6 CAD curves, 6 target curves, fully matched, with one-to-many
+    trial_id = "8053726dc2c048d160a07425_0_0"
+    rows = [json.loads(l) for l in open(MATCH_JSONL)]
+    r = next(x for x in rows if x["target_id"] == trial_id)
+    cad, tgt, gm = r["cad_curves"], r["target_curves"], r["gt_match"]
+    palette = ["#1f6feb", "#e0913b", "#2da44e", "#a371f7", "#e5534b", "#1098ad",
+               "#d29922", "#57606a"]
+
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(9, 5.2), dpi=150)
+    fig.patch.set_facecolor(DARK)
+    # color each target by its own index; color each CAD curve by the target it maps to
+    def draw(ax, curves, colors, prefix, title, off):
+        ax.set_facecolor(DARK)
+        for i, c in enumerate(curves):
+            pts = sample_curve(c, 40)
+            ax.plot(pts[:, 0] + off, pts[:, 1], color=colors[i], lw=2.2)
+        ax.set_xlim(-24 + off, 24 + off); ax.set_ylim(-24, 24)
+        ax.set_aspect("equal"); ax.axis("off")
+        ax.set_title(title, color=INK, fontsize=12, weight="bold")
+    tgt_colors = [palette[j % len(palette)] for j in range(len(tgt))]
+    cad_colors = [palette[gm[i] % len(palette)] if gm[i] != -1 else MUTE
+                  for i in range(len(cad))]
+    draw(axL, cad, cad_colors, "C", "drawn CAD curves", 0)
+    draw(axR, tgt, tgt_colors, "T", "target curves", 0)
+    fig.text(0.5, 0.06,
+             "match each drawn curve  →  its target  (same colour = matched; one target may take several)",
+             ha="center", color=INK, fontsize=10)
+    fig.tight_layout(rect=[0, 0.08, 1, 1])
+    fig.savefig(FIG / "task_setup.png", facecolor=DARK, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote task_setup.png")
+
+
 if __name__ == "__main__":
+    fig_task_setup()
     fig_stages()
     fig_matching()
     fig_embedding()

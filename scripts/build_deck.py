@@ -149,8 +149,20 @@ SLIDES: list[dict] = [
     },
     {
         "kind": "figure", "sec": "3",
+        "kicker": "Task 2 setup: pair each drawn curve to the target curve it represents",
+        "title": "What is line matching?",
+        "img": "results/figs/task_setup.png",
+        "caption": "one real MRCAD trial · left = human-drawn CAD, right = target · same colour = a matched pair",
+        "points": [
+            "Input: a set of drawn curves + a set of target curves (same coordinate frame)",
+            "Output: for each drawn curve, which target it corresponds to (one-to-many allowed)",
+            "→ a discrete correspondence problem — no coordinate generation needed",
+        ],
+    },
+    {
+        "kind": "figure", "sec": "3",
         "kicker": "Line matching: the VLM is near-chance; training-free geometry is exact",
-        "title": "Task 2 — line matching",
+        "title": "Task 2 — result",
         "img": "results/figs/matching.png",
         "caption": "probe_match.py + eval_probe.py · 50-trial eval, top-1 accuracy vs geometric GT",
         "points": [
