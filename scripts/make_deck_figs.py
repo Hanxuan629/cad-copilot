@@ -85,9 +85,9 @@ def fig_stages():
 
 def fig_matching():
     """Task 2: VLM near-chance at line matching; training-free geometry is perfect."""
-    methods = ["geometric\n(no model)", "VLM\ntext prompt", "VLM\nvisual prompt"]
+    methods = ["geometric\n(= GT reference)", "VLM\ntext prompt", "VLM\nvisual prompt"]
     acc = [1.000, 0.147, 0.112]
-    colors = [GOOD, WARN, WARN]
+    colors = [MUTE, WARN, WARN]
     fig, ax = plt.subplots(figsize=(9, 6), dpi=150)
     fig.patch.set_facecolor(DARK); ax.set_facecolor(DARK)
     bars = ax.bar(methods, acc, color=colors, width=0.6)
@@ -97,7 +97,7 @@ def fig_matching():
     for b, v in zip(bars, acc):
         ax.text(b.get_x() + b.get_width() / 2, v + 0.02, f"{v:.3f}",
                 ha="center", color=INK, fontsize=12, weight="bold")
-    ax.axhline(1.0, color=GOOD, ls=":", lw=1, alpha=0.5)
+    ax.axhline(1.0, color=MUTE, ls=":", lw=1, alpha=0.5)
     # title omitted: the slide kicker states the claim
     fig.tight_layout()
     fig.savefig(FIG / "matching.png", facecolor=DARK, bbox_inches="tight")
@@ -132,8 +132,8 @@ def fig_embedding():
 def fig_task_setup():
     """Task 2 setup: what line matching IS — pair each drawn curve to a target curve."""
     from common import sample_curve
-    # a real, clean trial: 6 CAD curves, 6 target curves, fully matched, with one-to-many
-    trial_id = "8053726dc2c048d160a07425_0_0"
+    # a real, clean trial: 7 CAD curves, all correctly matched (type + direction consistent)
+    trial_id = "571f3ec8772f237b58d18794_0_81"
     rows = [json.loads(l) for l in open(MATCH_JSONL)]
     r = next(x for x in rows if x["target_id"] == trial_id)
     cad, tgt, gm = r["cad_curves"], r["target_curves"], r["gt_match"]
@@ -143,7 +143,7 @@ def fig_task_setup():
     fig, (axL, axR) = plt.subplots(1, 2, figsize=(9, 5.2), dpi=150)
     fig.patch.set_facecolor(DARK)
     # color each target by its own index; color each CAD curve by the target it maps to
-    def draw(ax, curves, colors, prefix, title, off):
+    def draw(ax, curves, colors, title, off):
         ax.set_facecolor(DARK)
         for i, c in enumerate(curves):
             pts = sample_curve(c, 40)
@@ -154,10 +154,10 @@ def fig_task_setup():
     tgt_colors = [palette[j % len(palette)] for j in range(len(tgt))]
     cad_colors = [palette[gm[i] % len(palette)] if gm[i] != -1 else MUTE
                   for i in range(len(cad))]
-    draw(axL, cad, cad_colors, "C", "drawn CAD curves", 0)
-    draw(axR, tgt, tgt_colors, "T", "target curves", 0)
+    draw(axL, cad, cad_colors, "drawn CAD curves", 0)
+    draw(axR, tgt, tgt_colors, "target curves", 0)
     fig.text(0.5, 0.06,
-             "match each drawn curve  →  its target  (same colour = matched; one target may take several)",
+             "match each drawn curve  →  its target   (same colour = a matched pair)",
              ha="center", color=INK, fontsize=10)
     fig.tight_layout(rect=[0, 0.08, 1, 1])
     fig.savefig(FIG / "task_setup.png", facecolor=DARK, bbox_inches="tight")

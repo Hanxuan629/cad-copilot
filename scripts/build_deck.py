@@ -161,14 +161,14 @@ SLIDES: list[dict] = [
     },
     {
         "kind": "figure", "sec": "3",
-        "kicker": "Line matching: the VLM is near-chance; training-free geometry is exact",
+        "kicker": "Against the geometric reference, the zero-shot VLM is near-chance",
         "title": "Task 2 — result",
         "img": "results/figs/matching.png",
-        "caption": "probe_match.py + eval_probe.py · 50-trial eval, top-1 accuracy vs geometric GT",
+        "caption": "probe_match.py + eval_probe.py · 50-trial eval · accuracy measured against the geometric matcher's labels",
         "points": [
-            "For each drawn curve: which target curve does it match?",
-            "Geometric chamfer-NN = 1.00; zero-shot VLM = 0.15 (text) / 0.11 (visual)",
-            "→ a discrete geometric-scoring task — the VLM is the wrong tool",
+            "GT is built BY the geometric matcher, so it scores 1.00 by definition — a reference, not a perfect oracle (it can mis-pair a distorted stroke)",
+            "Zero-shot VLM reaches only 0.15 (text) / 0.11 (visual) of that reference",
+            "→ even against a simple geometric labeller, the VLM is the wrong tool here",
         ],
     },
     {
